@@ -1,0 +1,26 @@
+# SQL Gurukul · Lab 08 — asli streaming replica + WAL archive + point-in-time restore
+#   docker compose up -d
+#   Postgres primary → localhost:55432 · standby (read-only) → localhost:55433 · MySQL (binlog on) → localhost:33306
+#   ./scripts/replica.sh   ./scripts/pitr.sh   ./scripts/pitr-mysql.sh
+services:
+  primary:
+    image: postgres:16
+    environment: { POSTGRES_HOST_AUTH_METHOD: trust, POSTGRES_DB: lab }
+    # archive postgres user ke ghar mein (container ke andar) — pitr.sh wahi se restore karta hai
+    command: ["postgres", "-c", "wal_level=replica", "-c", "archive_mode=on",
+              "-c", "archive_command=mkdir -p /var/lib/postgresql/archive && test ! -f /var/lib/postgresql/archive/%f && cp %p /var/lib/postgresql/archive/%f"]
+    volumes:
+      - ./init:/docker-entrypoint-initdb.d:ro
+    ports: ["55432:5432"]
+  standby:
+    image: postgres:16
+    user: postgres
+    environment: { PGDATA: /var/lib/postgresql/data/pgdata }
+    # primary ki poori copy (pg_basebackup -R = standby.signal + primary_conninfo) aur phir streaming
+    entrypoint: ["bash", "-c", "until pg_basebackup -h primary -U postgres -D $$PGDATA -R -X stream; do rm -rf $$PGDATA; sleep 1; done; chmod 700 $$PGDATA; exec postgres -D $$PGDATA"]
+    depends_on: [primary]
+    ports: ["55433:5432"]
+  mysql:
+    image: mysql:8.0      # MySQL 8 mein binlog (ROW format) default on hai
+    environment: { MYSQL_ALLOW_EMPTY_PASSWORD: "yes", MYSQL_DATABASE: lab }
+    ports: ["33306:3306"]

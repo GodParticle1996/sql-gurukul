@@ -1,0 +1,17 @@
+# SQL Gurukul · Lab 09 — connection pooling: pgbench + PgBouncer (transaction pooling)
+#   docker compose up -d        Postgres → localhost:55432 · PgBouncer → localhost:56432
+#   ./scripts/conn-cost.sh   ./scripts/sweep.sh   ./scripts/bouncer.sh
+services:
+  postgres:
+    image: postgres:16
+    environment: { POSTGRES_HOST_AUTH_METHOD: trust, POSTGRES_DB: lab }
+    volumes:
+      - ./scripts:/lab/scripts:ro      # pgbench ke custom scripts (read.sql, cpu.sql)
+    ports: ["55432:5432"]
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    volumes:
+      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
+    depends_on: [postgres]
+    ports: ["56432:6432"]

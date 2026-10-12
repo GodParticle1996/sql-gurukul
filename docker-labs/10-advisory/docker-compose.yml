@@ -1,0 +1,19 @@
+# SQL Gurukul · Lab 10 — advisory locks: Postgres (pg_advisory_*) · MySQL (GET_LOCK) · PgBouncer ka jaal
+#   docker compose up -d        Postgres → localhost:55432 · PgBouncer → localhost:56432 · MySQL → localhost:33306
+#   ./scripts/cron.sh   ./scripts/xact.sh   ./scripts/bouncer-trap.sh
+services:
+  postgres:
+    image: postgres:16
+    environment: { POSTGRES_HOST_AUTH_METHOD: trust, POSTGRES_DB: lab }
+    ports: ["55432:5432"]
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    volumes:
+      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
+    depends_on: [postgres]
+    ports: ["56432:6432"]
+  mysql:
+    image: mysql:8.0      # 8.0.24+ zaroori — wait_timeout par ERROR 4031 bhejta hai
+    environment: { MYSQL_ALLOW_EMPTY_PASSWORD: "yes", MYSQL_DATABASE: lab }
+    ports: ["33306:3306"]

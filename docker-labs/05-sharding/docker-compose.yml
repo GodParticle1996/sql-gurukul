@@ -1,0 +1,21 @@
+# SQL Gurukul · Lab 05 — sharding (Instagram): do "machines" har engine ki
+#   docker compose up -d
+#   Postgres node A → localhost:55432   node B → localhost:55433
+#   MySQL    node A → localhost:33306   node B → localhost:33307
+services:
+  postgres:
+    image: postgres:16
+    environment: { POSTGRES_HOST_AUTH_METHOD: trust, POSTGRES_DB: lab }
+    ports: ["55432:5432"]
+  postgres_b:
+    image: postgres:16
+    environment: { POSTGRES_HOST_AUTH_METHOD: trust, POSTGRES_DB: lab }
+    ports: ["55433:5432"]
+  mysql:
+    image: mysql:8.0
+    environment: { MYSQL_ALLOW_EMPTY_PASSWORD: "yes", MYSQL_DATABASE: lab }
+    ports: ["33306:3306"]
+  mysql_b:
+    image: mysql:8.0
+    environment: { MYSQL_ALLOW_EMPTY_PASSWORD: "yes", MYSQL_DATABASE: lab }
+    ports: ["33307:3306"]
