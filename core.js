@@ -237,6 +237,7 @@ SG.trackProgress = function (track) {
   return { done, total: levels.length, complete: done === levels.length && levels.length > 0 };
 };
 SG.trackUnlocked = function (track) {
+  if (track.alwaysUnlocked) return true;
   const idx = SG.tracks.indexOf(track);
   if (idx <= 0) return true;
   return SG.trackProgress(SG.tracks[idx - 1]).complete;

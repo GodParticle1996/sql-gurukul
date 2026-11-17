@@ -594,3 +594,14 @@ function showCertificate(track) {
 /* ---------------- boot ---------------- */
 renderTopbar();
 showHome();
+// Companion lesson links do not write progress or mark a lesson complete.
+if (typeof location !== 'undefined') {
+  const linked = /^#level=([a-z0-9-]+)$/.exec(location.hash || '');
+  const level = linked && Object.values(SG.levelSets).flat().find(l => l.id === linked[1]);
+  if (level) {
+    const track = SG.trackOf(level), levels = SG.levelsOf(track), index = levels.indexOf(level);
+    const open = SG.trackUnlocked(track) && (index === 0 || SG.state.completed.includes(levels[index - 1].id));
+    if (open) showIntro(level);
+    else appEl.appendChild(el('p', 'lesson-card', 'Linked lesson abhi locked hai. Track map mein required pichhle levels complete karo.'));
+  }
+}

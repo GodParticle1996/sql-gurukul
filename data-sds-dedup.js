@@ -1,0 +1,44 @@
+/* Original database-only companion to the reviewed webhook video. */
+(function () {
+  const Q=(q,choices,answer,feedback)=>({q,choices,answer,explain:feedback[answer],choiceExplanations:feedback});
+  const level={
+    id:'sds-db-dedup',icon:'🔐',title:'Same event do baar — unique key aur atomic effect',badge:'Duplicate Detective',
+    objectives:['Check-then-act race ko do workers ke saath trace karo.','Unique event claim aur local effect ko ek transaction mein rakho.','Merchant scope aur deduplication retention ka reason samjho.'],
+    lesson:[
+      '<h3>Shop-a ka evt-1</h3><p>Same event do baar aaya. Har delivery local total mein 10 add karne ki koshish karti hai. Desired total 10 hai. <b>Deduplication</b> ka matlab pehle processed event ko pehchaankar duplicate effect skip karna.</p><p>Seen table processed identity rakhti hai. Totals table actual result rakhti hai. Sirf seen table mein unique key hona total ko automatic protect nahi karta.</p>',
+      '<h3>SELECT karke phir UPDATE: beech ka gap</h3><p>Worker A checks: evt-1 absent. Worker B bhi checks: absent. Dono total mein 10 add kar dete hain. Baad mein unique seen row sirf ek baar insert hoti hai. Total phir bhi 20 hai. Do checks ke baad ki action atomic nahi thi.</p><p><b>Race</b> tab hoti hai jab overlapping workers purani observation par decision lete hain. Lab barrier dono workers ko SELECT ke baad wait karwaati hai, taaki broken sequence reliably reproduce ho.</p>',
+      '<h3>Claim aur effect saath</h3><pre>BEGIN IMMEDIATE;\nINSERT INTO seen(merchant, event_id)\nVALUES (\'shop-a\', \'evt-1\')\nON CONFLICT(merchant, event_id) DO NOTHING;\n-- Application checks: nayi row insert hui?\n-- Sirf haan par total mein +10 karo.\nCOMMIT;</pre><p><code>PRIMARY KEY(merchant, event_id)</code> duplicate identity rokta hai. Application insertion result check karti hai. New claim aur total update ek transaction mein commit hote hain. Duplicate claim par effect skip hota hai.</p><p>SQLite ka <code>BEGIN IMMEDIATE</code> writer transaction shuru karta hai. Ek waqt mein ek writer chalti hai. Busy/timeout error aaye toh completed bolkar skip mat karo; retry policy se poori transaction dobara attempt karo.</p>',
+      '<h3>Actual two-process experiment</h3><p><code>sql-gurukul</code> folder mein Python 3 se run karo. Lab apni temporary database banati aur remove karti hai.</p><pre>python3 practical-labs/event-dedup/dedup.py --mode broken\npython3 practical-labs/event-dedup/dedup.py --mode atomic\npython3 practical-labs/event-dedup/dedup.py --mode crash\npython3 practical-labs/event-dedup/dedup.py --check</pre><p>Broken total 20. Atomic total 10. Crash mode mein uncommitted claim ke baad child process exits: retry se pehle total 0, retry ke baad 10.</p><p><a href="practical-labs/event-dedup/README.md" target="_blank" rel="noopener noreferrer">Worked outputs aur code-change exercises</a></p>',
+      '<h3>Identity aur boundary</h3><p>Event ID provider/account ke scope mein unique ho sakti hai. Is lab ka key <code>(merchant, event_id)</code> hai. Shop-b ka same evt-1 alag event hai. Same logical business operation ke liye provider alag event IDs de toh business identity ka separate rule chahiye.</p><p>Seen rows delete hone ke baad old replay new lag sakti hai. Retention ko supported retry aur replay period se match karo. External payment ya email local SQL transaction mein participate nahi karti; remote effect ke liye alag idempotency/recovery contract chahiye.</p>',
+      '<p>References: <a href="https://www.sqlite.org/lang_transaction.html" target="_blank" rel="noopener noreferrer">SQLite transactions</a> · <a href="https://www.sqlite.org/lang_upsert.html" target="_blank" rel="noopener noreferrer">SQLite UPSERT</a>. <a href="../sys-design-gurukul/index.html#level=sds-webhook">System Gurukul mein webhook delivery aur verification</a>.</p>'
+    ],
+    stages:[
+      {type:'flow',title:'Dono workers ne absent dekha',scenario:'Shop-a ka evt-1 +10 karta hai. Har statement broken run mein independently commit hoti hai.',lanes:[{id:'a',label:'Worker A'},{id:'b',label:'Worker B'},{id:'db',label:'SQLite'}],steps:[
+        {lane:'a',t:'A: SELECT seen → absent',note:'A ne sirf read kiya; event reserve nahi hua.'},
+        {lane:'b',t:'B: SELECT seen → absent',note:'B ko bhi processing ka permission lagta hai. Unique row abhi nahi.'},
+        {lane:'db',t:'A +10; B +10. Total = 20.',bad:true,note:'Seen insert baad mein unique hone se do committed increments undo nahi hote.',ask:Q('Unique seen key already hai. Double total ka real reason?', ['SQLite unique key kaam nahi karti','Effect aur unique claim same transaction mein conditional nahi the','Event ID mein hyphen allowed nahi'],1,
+          ['Unique constraint seen rows par enforce hoti hai; pehle ki total updates alag hain.','Same transaction aur successful new claim par conditional effect dono chahiye.','evt-1 valid text identity hai; punctuation is race ka reason nahi.'])},
+        {lane:'db',t:'Atomic run: one new claim, one +10.',good:true,note:'Duplicate insert no-op hoti hai. Duplicate worker total update skip karta hai.'}
+      ],insight:'Unique marker effect ko tab protect karta hai jab marker aur conditional effect ek commit boundary share karein.'},
+      {type:'order',title:'Atomic processing sequence banao',instructions:'Same SQLite database mein local total update karna hai.',steps:[
+        {text:'Writer transaction shuru karo',explain:'Claim aur local effect ek transaction mein honge.'},
+        {text:'Scoped unique event claim insert karo',explain:'Merchant aur event ID duplicate identity define karte hain.'},
+        {text:'Nayi row insert hui ho tabhi total update karo',explain:'Duplicate event par successful no-op ko increment mein mat badlo.'},
+        {text:'Claim aur total ek saath commit karo',explain:'Commit se pehle failure par partial claim ya partial effect nahi rehna chahiye.'}
+      ]},
+      {type:'quiz',title:'Crash aur scope ka decision',instructions:'Exact saved state se answer nikalo.',questions:[
+        Q('Seen row separately commit hui. Total update se pehle process crash. Retry marker dekhkar skip karti hai. Kya risk?', ['Total double ho gaya','Local effect miss ho gaya','Remote payment rollback ho gayi'],1,
+          ['Is sequence mein total update hui hi nahi.','Marker completion bol raha hai, lekin actual effect absent hai.','Local marker external payment transaction control nahi karta.']),
+        Q('Shop-a aur shop-b dono ka event ID evt-1 hai. Provider IDs account-scoped hain. Key?', ['event_id alone','merchant alone','merchant plus event_id'],2,
+          ['Shop-a ki marker shop-b ki independent event suppress kar sakti hai.','Ek merchant ki saari events ek hi identity nahi hain.','Account scope plus event ID intended uniqueness match karta hai.']),
+        Q('Seen markers 1 din mein delete hote hain. Manual replay 7 din purani event laa sakti hai. Kya hoga?', ['Purani duplicate dobara new lag sakti hai','Primary key deleted event ko forever yaad rakhegi','Replay timestamp SQL transaction ko extend karega'],0,
+          ['Deleted marker se identity evidence chala gaya. Retention aur replay policy align karo.','Primary key current rows enforce karti hai; deleted identities ka eternal memory nahi.','Timestamp transaction lifetime ya marker retention automatically nahi badalta.'])
+      ]}
+    ],
+    interview:{title:'Interview · database guarantee ki boundary',questions:[Q('Same transaction mein marker aur local counter hain. Ab external email exactly once send hogi?', ['Haan; local COMMIT remote email commit karta hai','Nahi; external delivery ko separate retry/idempotency design chahiye','Haan; merchant key email deduplicate karti hai'],1,
+      ['External service local SQLite transaction ka participant nahi.','Local effect atomic hai. Remote side effect ke acknowledgement aur retry alag boundaries hain.','Key tabhi remote effect protect karegi jab receiver ka contract us identity ko use kare.'])]},
+    success:['Unique constraint, conditional effect aur transaction ka separate role explain kar sakte ho.'],cards:[{front:'Unique marker enough kyun nahi?',back:'Effect pehle independently commit ho sakta hai. New claim check aur effect ko same transaction mein rakho.'}]
+  };
+  VISUALS[level.id]={t:'Claim aur result ki ek commit boundary',html:'<div class="dg-split"><div class="dg-box is-accent"><span class="bx-label">1 · Scoped key</span><div class="dg-cap">shop-a + evt-1</div></div><div class="dg-box is-good"><span class="bx-label">2 · New claim?</span><div class="dg-cap">Haan → local total +10<br>Nahi → effect skip</div></div><div class="dg-box is-gold"><span class="bx-label">3 · One commit</span><div class="dg-cap">Seen ID + local effect</div></div></div>'};
+  SG.registerLevels('db-practice',[level]);
+})();

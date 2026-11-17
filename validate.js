@@ -97,7 +97,7 @@ vm.createContext(sandbox);
 const LOAD_ORDER = ['core.js', 'data-core.js', 'visuals.js', 'games.js', 'labs.js', 'sqlcli.js', 'dockerlab.js',
   'data-beginner.js', 'data-intermediate.js', 'data-advanced.js', 'data-scale.js',
   'data-int-wal.js', 'data-int-mvcc.js', 'data-int-partitioning.js', 'data-int-columnar.js',
-  'data-int-sharding.js', 'data-int-migration.js', 'data-int-ops.js', 'data-int-trees.js', 'data-int-advisory.js'];
+  'data-int-sharding.js', 'data-int-migration.js', 'data-int-ops.js', 'data-int-trees.js', 'data-int-advisory.js', 'data-sds-replay.js', 'data-sds-dedup.js', 'data-sds-query-cost.js', 'data-sds-seat-claim.js', 'data-sds-request-replay.js', 'data-sds-spatial-query.js', 'data-sds-judge.js', 'data-sds-method.js'];
 
 for (const f of LOAD_ORDER) {
   const p = path.join(DIR, f);

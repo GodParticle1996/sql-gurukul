@@ -183,3 +183,21 @@ chhoona nahi padta. Poora guide: [`EXTENDING.md`](EXTENDING.md)
 | `data-int-*.js` (6 files) | 🔬 Database Internals track (IIFE mein — koi global nahi) + purane levels ke `SG.extendLevel` |
 | `docker-labs/01…06` | Asli Postgres + MySQL labs (compose, scripts, SQL, README numbers ke saath) |
 | `gallery.html` | Saare diagrams ek page par |
+
+## Database practice companions
+
+The `db-practice` track starts at `index.html#level=sds-db-replay`: scoped replay queries, composite indexes, cursor pagination and atomic checkpoints. Complete that level to unlock `sds-db-dedup`: claim an event identity and apply its local database effect in one transaction. Then `sds-db-query-cost` covers actual query plans, matching-row work and a conditional like counter.
+
+Run `python3 practical-labs/event-replay/replay.py --check` and `python3 practical-labs/event-dedup/dedup.py --check`. The second lab uses two real worker processes. Broken check-then-act produces total 20; the atomic version produces 10. A separate child-process crash checks rollback and safe retry. Each README includes individual exercises and worked outputs. Run `python3 practical-labs/query-cost/query_cost.py` for SCAN-to-SEARCH plans, duplicate-like failure, conditional counter, exception rollback and unlike/reconciliation. Existing `locks` now includes two seat-claim stages. Run `python3 practical-labs/seat-claim/seat_claim.py`: two actual processes reproduce two bookings, then a guarded UPDATE permits one; version-only conflict and exception rollback are checked separately. These are isolated SQLite experiments, not external payment or queue integrations.
+
+Existing `sds-db-dedup` also adds two request-replay stages. Run `python3 practical-labs/request-replay/replay.py` for scoped parameters, saved response, child exits before/after commit, key pruning, UPSERT expressions and stale-version protection. Six actual SQLite cases pass; no external payment is made.
+
+Existing `sds-db-query-cost` also adds two spatial-query stages. Run `python3 practical-labs/spatial-query/query.py` for a real R*Tree query, exact radius/eligibility filtering, stale-index failure, trigger maintenance/rollback and30 full-scan parity checks. PostGIS reference is documented but was not executed.
+
+Existing `sds-db-dedup` adds two judge-verdict stages. Run `python3 practical-labs/judge-verdict/verdict.py`: two connections race, old generation fails, exception rolls back verdict/outbox, repeated delivery applies one local effect, and scoring rebuild includes wrong attempts. Five actual SQLite checks pass. [Guide](practical-labs/judge-verdict/README.md).
+
+Existing `sds-db-query-cost` and `locks` add four One Method stages. Run `python3 practical-labs/design-method/search.py` and `python3 practical-labs/design-method/holds.py` for FTS5 word/phrase matching and update/rollback, current hold authority, expiry and atomic sale/payment-intent replay. Ten real SQLite check groups passed. [Guide](practical-labs/design-method/README.md).
+
+Current validator: 6 tracks, 57 levels, 277 stages, 67 terminal missions, 150 interview questions, 301 flashcards and 57 diagrams. The validator ran 67 missions and rendered 71 labs. Focused flow/deep-link/gate checks pass with `node dev/sds-test.cjs`; fresh browser layout checks for the dedup, query/counter, seat-claim, request-replay, spatial-query judge-verdict and design-method additions remain pending.
+
+These lessons are original database companions to the System Gurukul source reviews. Transport, receiver architecture and signature checks remain in System Gurukul. [Delivery and remaining source review](../research/system-design-school/DELIVERY.md).

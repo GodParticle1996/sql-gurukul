@@ -119,9 +119,9 @@ MySQL      version column (optimistic)   1 ✅                     424 ms</pre>
      <h3>⚖️ Kab kaunsa?</h3>
      <table>
        <tr><th>Situation</th><th>Chuno</th><th>Kyun</th></tr>
-       <tr><td>Takraav kam (profile edit, cart, apna document)</td><td>🟢 <b>Optimistic</b> (version column)</td><td>koi lock nahi, retry kabhi-kabhi</td></tr>
+       <tr><td>Takraav kam (profile edit, cart, apna document)</td><td>🟢 <b>Optimistic</b> (version column)</td><td>long read lock nahi; UPDATE internally lock kar sakti hai; conflict handling chahiye</td></tr>
        <tr><td>Row padhne aur likhne ke beech <b>user ka time</b> (form 5 minute khula)</td><td>🟢 <b>Optimistic</b></td><td>5 minute ka DB lock / connection pakadna namumkin</td></tr>
-       <tr><td>Sab ek hi row par toot padte hain (aakhri seat, flash sale)</td><td>🔴 <b>Pessimistic</b> ya atomic UPDATE ya queue</td><td>optimistic mein retry ka toofan</td></tr>
+       <tr><td>Sab ek hi row par toot padte hain (aakhri seat, flash sale)</td><td>Atomic conditional UPDATE, bounded queue ya short pessimistic transaction compare karo</td><td>blind retries overload kar sakti hain; sold result par retry rok do; contention measure karo</td></tr>
        <tr><td>Shart ek hi row ki value par (stock &gt; 0)</td><td>⭐ <b>Atomic UPDATE</b> (<code>WHERE stock &gt; 0</code>)</td><td>padhna-likhna ek hi statement mein, koi gap nahi</td></tr>
      </table>`,
     `<h3>🔁 Deadlock — dono ek doosre ka intezaar</h3>

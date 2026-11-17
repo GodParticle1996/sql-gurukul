@@ -415,7 +415,7 @@ Requests   ❌ sab timeout</pre>
   title: 'Race Conditions — Aur Unhe Theek Karne Ke Teen Tareeke',
   badge: 'Lock Lohar',
   objectives: [
-    'Check-then-act race — woh bug jo test mein kabhi nahi dikhta',
+    'Check-then-act race — controlled interleaving se reproduce karo',
     '<code>SELECT … FOR UPDATE</code> (pessimistic) vs version column (optimistic)',
     'Sabse saaf ilaaj: shart ko <b>UPDATE ke andar</b> daal do',
     'MVCC — readers writers ko block kyun nahi karte',
@@ -426,13 +426,12 @@ Requests   ❌ sab timeout</pre>
 IF (qty > 0) {
     UPDATE stock SET qty = qty - 1 WHERE id = 7;
 }</pre>
-     <p>Yeh code sahi <b>dikhta</b> hai. 99.9% waqt sahi <b>chalta</b> bhi hai.
-     Par jab do requests theek ek saath aayein — dono ko <code>qty = 1</code> milta hai,
+     <p>Requests ka unsafe overlap na ho toh code sahi result de sakta hai.
+     Agar dono checks kisi decrement se pehle chalein — dono ko <code>qty = 1</code> milta hai,
      dono <code>IF</code> paas karti hain, aur stock <b>−1</b> par chala jaata hai.</p>
-     <p class="tip">🎯 Ise <b>check-then-act race</b> kehte hain. Yeh testing mein
-     lagbhag kabhi nahi dikhta (uske liye do requests ka <b>theek</b> ek saath aana
-     zaroori hai) aur production mein roz hota hai. Uska nishaan hamesha ek hi hota
-     hai: <i>"yeh kaise ho sakta hai?"</i></p>
+     <p class="tip">🎯 Ise <b>check-then-act race</b> kehte hain. Same instant ya two cores
+     zaroori nahi; unsafe operation order enough hai. Test barrier se dono reads
+     complete karao, phir writes release karo. Isse failure repeatably inspect kar sakte ho.</p>
      <h3>⚠️ Transaction ise nahi rokti</h3>
      <p>Sabse badi galatfehmi: "maine <code>BEGIN</code> laga diya, ab safe hai".
      <b>Nahi.</b> Transaction <b>atomicity</b> deta hai — "sab ya kuch nahi".

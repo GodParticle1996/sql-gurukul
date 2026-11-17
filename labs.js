@@ -364,7 +364,9 @@
      ============================================================ */
   SG.renderers.flow = function renderFlow(stage, arena, onDone) {
     let i = -1, playing = false, timer = null;
-    let firstTry = 0, asked = 0;
+    let firstTry = 0, finished = false, completed = false;
+    const answered = new Set(), wrongSteps = new Set();
+    const questionCount = stage.steps.filter(s => s.ask).length;
 
     if (stage.scenario) arena.appendChild(el('div', 'lab-scenario', stage.scenario));
 
@@ -409,6 +411,7 @@
     function pause() { playing = false; bPlay.textContent = '▶ Chalao'; if (timer && typeof clearInterval === 'function') clearInterval(timer); timer = null; }
 
     function step(dir) {
+      if (completed || (dir > 0 && i >= 0 && stage.steps[i].ask && !answered.has(i))) return false;
       const n = i + dir;
       if (n < -1 || n >= stage.steps.length) return false;
       i = n;
@@ -420,6 +423,7 @@
     }
 
     function render() {
+      askBox.innerHTML = '';
       Object.values(laneEls).forEach(b => (b.innerHTML = ''));
       stage.steps.forEach((s, si) => {
         if (si > i) return;
@@ -437,42 +441,60 @@
         stateBox.innerHTML = st.map(x => `<div class="fl-cell"><span>${x.k}</span><b>${x.v}</b></div>`).join('');
       }
       bBack.disabled = i < 0;
-      bStep.disabled = i >= stage.steps.length - 1;
+      bStep.disabled = i >= stage.steps.length - 1 || !!(s && s.ask && !answered.has(i));
+      bPlay.disabled = i >= stage.steps.length - 1 || !!(s && s.ask && !answered.has(i));
     }
 
     function showAsk(s) {
       const a = s.ask;
-      asked++;
       askBox.innerHTML = `<div class="fa-q">🤔 ${a.q}</div>`;
-      let wrong = false;
+      const questionStep = i;
+      function nextButton() {
+        const go = el('button', 'btn small', 'Aage →');
+        go.onclick = () => {
+          if (i !== questionStep || !answered.has(questionStep)) return;
+          askBox.innerHTML = '';
+          if (i === stage.steps.length - 1) finish(); else step(1);
+        };
+        askBox.appendChild(go);
+      }
+      if (answered.has(questionStep)) {
+        askBox.appendChild(el('div', 'feedback good', `💡 ${a.explain}`));
+        nextButton(); return;
+      }
       const box = el('div', 'choices');
+      const optionFeedback = el('div', 'feedback');
       a.choices.forEach((c, ci) => {
         const b = el('button', 'choice', c);
         b.onclick = () => {
+          if (i !== questionStep || answered.has(questionStep)) return;
           if (ci === a.answer) {
-            if (!wrong) { firstTry++; SG.addXP(SG.XP_PER_ITEM); }
+            answered.add(questionStep);
+            if (!wrongSteps.has(questionStep)) { firstTry++; SG.addXP(SG.XP_PER_ITEM); }
             box.querySelectorAll('.choice').forEach(x => (x.disabled = true));
             b.classList.add('correct');
-            askBox.appendChild(el('div', 'feedback good', `💡 ${a.explain}`));
-            const go = el('button', 'btn small', 'Aage →');
-            go.onclick = () => { askBox.innerHTML = ''; step(1); };
-            askBox.appendChild(go);
+            optionFeedback.className = 'feedback good'; optionFeedback.innerHTML = `💡 ${a.explain}`;
+            nextButton();
           } else {
-            if (!wrong) SG.noteMistake(a.q, `<b>${a.choices[a.answer]}</b><br>${a.explain}`);
-            wrong = true; b.classList.add('wrong'); b.disabled = true; shake(b);
+            if (!wrongSteps.has(questionStep)) SG.noteMistake(a.q, `<b>${a.choices[a.answer]}</b><br>${a.explain}`);
+            wrongSteps.add(questionStep); b.classList.add('wrong'); b.disabled = true; shake(b);
+            optionFeedback.className = 'feedback bad';
+            optionFeedback.innerHTML = a.choiceExplanations && a.choiceExplanations[ci] || 'Is choice ko current step ke state se dobara compare karo.';
           }
         };
         box.appendChild(b);
       });
-      askBox.appendChild(box);
+      askBox.append(box, optionFeedback);
       askBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
     function finish() {
+      if (finished || answered.size !== questionCount) return;
+      finished = true;
       feedback.className = 'feedback good';
       feedback.innerHTML = `✅ <b>Poora flow dekh liya.</b><br>${stage.insight}`;
       const next = el('button', 'btn', 'Aage badho →');
-      next.onclick = () => onDone({ firstTry, total: Math.max(1, asked) });
+      next.onclick = () => { if (completed) return; completed = true; next.disabled = true; onDone({ firstTry, total: Math.max(1, questionCount) }); };
       arena.appendChild(next);
       next.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
